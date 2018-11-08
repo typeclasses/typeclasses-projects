@@ -1,0 +1,19 @@
+cabal-version: 2.0
+
+name: backpack-prelude-demo
+version: 0.1.0.0
+build-type: Simple
+
+library
+    default-language: Haskell2010
+
+    exposed-modules:
+        Demo
+
+    build-depends:
+        base -any
+      , foundation -any
+
+    mixins:
+        base hiding (Prelude)
+      , foundation (Foundation as Prelude)
