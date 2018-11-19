@@ -1,0 +1,51 @@
+name:                fltkhs-light-theme-skeketon
+version:             0.1.0.0
+github:              "deech/fltkhs-light-theme-skeleton"
+license:             BSD3
+author:              "Aditya Siram"
+maintainer:          "aditya.siram@gmail.com"
+copyright:           "2018 Aditya Siram"
+extra-source-files:
+- README.md
+
+custom-setup:
+  dependencies:
+  - base >= 4.4
+  - Cabal >= 2.2.0.0 && < 3
+  - asset-bundle >= 0.1.0.0
+  - filepath
+  - directory
+
+dependencies:
+- base >= 4.7 && < 5
+
+flags:
+  fastCompile:
+    description: Turn off optimizations for faster compilation
+    manual: True
+    default: False
+
+executables:
+  fltkhs-light-theme-skeleton:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+      - fltkhs >= 0.5.4.4
+      - fltkhs-themes >= 0.1.0.0
+      - text >= 1.2.2.0
+      - load-font >= 0.1.0.2
+    when:
+      - condition: impl(ghc >= 7.10) && impl(ghc < 8.0) && flag(fastCompile)
+        then:
+          ghc-options: -fno-specialise -fmax-simplifier-iterations=0 -fsimplifier-phases=0
+        else:
+          ghc-options: -O2
+      - condition: (os(linux) || os(windows))
+        then:
+          ghc-options: -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lfltkc" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+        else:
+          ghc-options: "-optl-Wl,-lfltkc"
