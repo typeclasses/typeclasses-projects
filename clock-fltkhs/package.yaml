@@ -1,10 +1,10 @@
-name:                fltkhs-light-theme-skeketon
+name:                clock-fltkhs
 version:             0.1.0.0
-github:              "deech/fltkhs-light-theme-skeleton"
-license:             BSD3
-author:              "Aditya Siram"
-maintainer:          "aditya.siram@gmail.com"
-copyright:           "2018 Aditya Siram"
+github:              "typeclasses/typeclasses-projects"
+license:             MIT
+author:              "Julie Moronuki"
+maintainer:          "hello@typeclasses.com"
+copyright:           "2018 Typeclass Consulting LLC"
 extra-source-files:
 - README.md
 

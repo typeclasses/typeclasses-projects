@@ -1,5 +1,7 @@
+-- copyright 2018 Aditya Siram
+
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE CPP #-}
+
 module Main (main) where
 
 import Control.Monad
