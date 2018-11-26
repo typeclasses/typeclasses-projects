@@ -15,16 +15,19 @@ import Graphics.UI.FLTK.Theme.Light
 
 ui :: (?assets :: Assets) => IO ()
 ui = do
- window <- doubleWindowNew
-           (Size (Width 600) (Height 400))
+ window <- windowNew
+           (Size (Width 300) (Height 300))
            Nothing
            (Just "clock")
  begin window
  clock <- clockNew
-        (Rectangle (Position (X 225) (Y 180)) (Size (Width 150) (Height 150)))
-        Nothing
+        (Rectangle (Position (X 50) (Y 50)) (Size (Width 200) (Height 200)))
+        (Just "theme clock")
  end window
  showWidget window
+
+centerPls :: Size -> Rectangle -> Rectangle
+centerPls w c = undefined
 
 main :: IO ()
 main = do
