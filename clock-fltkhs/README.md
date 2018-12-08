@@ -9,7 +9,7 @@ To build:
 
 To use in REPL:
 
-`> stack ghci --no-nix`   
+`> stack ghci --flag fltkhs:bundled --no-nix`   
 `> replMain`
 
-If you have nix enabled in your global Stack configuration, be sure to pass the `--no-nix` flag to the `stack build`, `stack exec`, or `stack ghci` commands.
+If you have nix enabled in your global Stack configuration, you may need to pass the `--no-nix` flag to the `stack build`, `stack exec`, or `stack ghci` commands. You *shouldn't* have to pass it to `stack build` but a few times I have had to. God knows why.
