@@ -2,29 +2,37 @@
 
 module Main (main) where
 
-import Data.Time (TimeZone, UTCTime, TimeOfDay)
-import Graphics.UI.Gtk (AttrOp (..), PangoRectangle (..))
-import Text.Printf (printf)
-
-import qualified Control.Concurrent as Concurrent
+-- async
 import qualified Control.Concurrent.Async as Async
-import qualified Data.Time as Time
-import qualified Graphics.Rendering.Cairo as Cairo
-import qualified Graphics.Rendering.Pango as Pango
-import qualified Graphics.UI.Gtk as Gtk
 
 -- base
 import Control.Applicative
+import qualified Control.Concurrent as Concurrent
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Fixed
 import Data.Foldable
 import Data.Function
 import Data.Maybe
+import Text.Printf (printf)
+
+-- cairo
+import qualified Graphics.Rendering.Cairo as Cairo
+
+-- gtk3
+import qualified Graphics.UI.Gtk as Gtk
+import Graphics.UI.Gtk (AttrOp (..), PangoRectangle (..))
+
+-- pango
+import qualified Graphics.Rendering.Pango as Pango
 
 -- stm
-import Control.Concurrent.STM (TVar)
 import qualified Control.Concurrent.STM as STM
+import Control.Concurrent.STM (TVar)
+
+-- time
+import qualified Data.Time as Time
+import Data.Time (TimeZone, UTCTime, TimeOfDay)
 
 -- unix
 import qualified System.Posix.Signals as Signals

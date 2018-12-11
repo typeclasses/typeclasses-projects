@@ -19,18 +19,12 @@ rec {
 
     haskell =
         ghc.ghcWithPackages (p: [
-            p.alex
             p.async
             p.cairo
-            p.glib
             p.gtk3
-            p.happy
             p.pango
-            p.primitive
-            p.random
             p.stm
             p.time
-            p.transformers
             p.unix
         ]);
 
