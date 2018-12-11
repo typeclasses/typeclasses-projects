@@ -19,7 +19,6 @@ rec {
 
     haskell =
         ghc.ghcWithPackages (p: [
-            p.async
             p.cairo
             p.gtk3
             p.pango
