@@ -35,6 +35,7 @@ rec {
         ]);
 
     ghcid =
-        pkgs.haskellPackages.ghcid;
+        pkgs.haskell.lib.justStaticExecutables
+            pkgs.haskellPackages.ghcid;
 
 }
