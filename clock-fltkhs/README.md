@@ -1,9 +1,12 @@
 # clock-fltkhs
+
+https://typeclasses.com/timepieces/lesson-1
+
 This is a meant to demonstrate building a native clock app with the `fltkhs` and `fltkhs-themes` packages. This uses the `fltkhs-light-theme-skeleton` app as a starting point. 
 
 To build: 
 
-`> git clone https://github.com/typeclasses/typeclasses-projects.git`    
+`> git clone https://github.com/typeclasses/typeclasses-projects.git`
 `> cd clock-fltkhs`    
 `> stack build --flag fltkhs:bundled`      
 
