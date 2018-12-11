@@ -7,6 +7,7 @@ nix run \
     --keep LANG \
     --keep LOCALE_ARCHIVE \
     --keep TERM \
+    --keep HOME \
     --file default.nix \
     haskell \
     -c \
