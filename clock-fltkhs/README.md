@@ -7,8 +7,8 @@ This is a meant to demonstrate building a native clock app with the `fltkhs` and
 To build: 
 
 `> git clone https://github.com/typeclasses/typeclasses-projects.git`
-`> cd clock-fltkhs`    
-`> stack build --flag fltkhs:bundled`      
+`> cd typeclasses-projects/clock-fltkhs`
+`> stack build --flag fltkhs:bundled`
 
 To use in REPL:
 
