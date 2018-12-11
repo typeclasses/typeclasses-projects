@@ -1,7 +1,8 @@
 name:                clock-fltkhs
 version:             0.1.0.0
 github:              "typeclasses/typeclasses-projects"
-license:             MIT
+license:             GPL-3
+license-file:        LICENSE
 author:              "Julie Moronuki"
 maintainer:          "hello@typeclasses.com"
 copyright:           "2018 Typeclass Consulting LLC"

@@ -4,6 +4,9 @@ name: backpack-prelude-demo
 version: 0.1.0.0
 build-type: Simple
 
+license: GPL-3
+license-file: LICENSE
+
 library
     default-language: Haskell2010
 
