@@ -5,7 +5,7 @@ version: 0.1.0.0
 build-type: Simple
 
 license: GPL-3
-license-file: LICENSE
+license-file: LICENSE.txt GPL-3.txt
 
 library
     default-language: Haskell2010
