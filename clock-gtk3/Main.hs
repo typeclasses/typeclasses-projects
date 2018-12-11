@@ -17,14 +17,13 @@ import qualified Graphics.Rendering.Cairo as Cairo
 
 -- gtk3
 import qualified Graphics.UI.Gtk as Gtk
-import Graphics.UI.Gtk (AttrOp (..), PangoRectangle (..))
+import Graphics.UI.Gtk (AttrOp ((:=)), PangoRectangle (..))
 
 -- pango
 import qualified Graphics.Rendering.Pango as Pango
 
 -- stm
 import qualified Control.Concurrent.STM as STM
-import Control.Concurrent.STM (TVar)
 
 -- time
 import qualified Data.Time as Time
@@ -80,7 +79,7 @@ createFontDescription =
     return fd
 
 render :: Gtk.WidgetClass w
-    => TVar String
+    => STM.TVar String
         -- ^ Variable containing the text to display
     -> Pango.FontDescription
         -- ^ Font to display the text in
@@ -105,7 +104,7 @@ render displayVar fontDescription widget =
 
 -- | @'runClock' t@ is an IO action that runs forever, keeping the value of @t@
 -- equal to the current time.
-runClock :: TVar String -> IO ()
+runClock :: STM.TVar String -> IO ()
 runClock displayVar =
   forever $
     do
@@ -132,7 +131,7 @@ getLocalTimeOfDay =
 -- | @'watchClock' t w@ is an IO action that runs forever. Each time the value
 -- of @t@ changes, it invalidates the drawing area @w@, thus forcing it to
 -- redraw and update the display.
-watchClock :: Gtk.WidgetClass w => TVar String -> w -> IO ()
+watchClock :: Gtk.WidgetClass w => STM.TVar String -> w -> IO ()
 watchClock displayVar drawingArea =
     go ""
   where

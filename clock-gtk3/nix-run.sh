@@ -3,6 +3,9 @@
 set -eu
 
 nix run \
+    --ignore-environment \
+    --keep DISPLAY \
+    --keep XAUTHORITY \
     --file default.nix \
-    haskell \
-    -c runhaskell Main.hs
+    clock \
+    -c clock
