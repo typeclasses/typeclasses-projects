@@ -1,5 +1,6 @@
 rec {
-    pkgs = import <nixpkgs> {};
+    pkgs =
+        import (import ./nixpkgs.nix) {};
 
     ghc =
         pkgs.haskell.packages.ghc844.override {
@@ -33,6 +34,7 @@ rec {
             p.unix
         ]);
 
-    ghcid = pkgs.haskellPackages.ghcid;
+    ghcid =
+        pkgs.haskellPackages.ghcid;
 
 }
