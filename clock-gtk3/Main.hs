@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE LambdaCase, ScopedTypeVariables, TypeApplications #-}
 
 module Main (main) where
 
@@ -10,7 +10,6 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.Fixed
 import Data.Foldable
-import Text.Printf (printf)
 
 -- cairo
 import qualified Graphics.Rendering.Cairo as Cairo
@@ -31,18 +30,45 @@ import qualified Data.Time as Time
 -- unix
 import qualified System.Posix.Signals as Signals
 
+data DisplayTime a =
+    DisplayTime
+        { displayHour :: a
+        , displayMinute :: a
+        , displaySecond :: a
+        }
+    deriving Eq
+
+twoDigits :: Int -> String
+twoDigits x | x < 0 = "??"
+twoDigits x =
+    case (show @Int x) of
+        [a]    -> ['0', a]
+        [a, b] -> [a, b]
+        _      -> "??"
+
+showDisplayTime :: DisplayTime Int -> String
+showDisplayTime (DisplayTime x y z) =
+    twoDigits x <> ":" <>
+    twoDigits y <> ":" <>
+    twoDigits z
+
 main :: IO ()
 main =
   do
-    displayVar <- STM.newTVarIO ""
+    displayVar <- STM.atomically (STM.newTVar Nothing)
     _ <- Gtk.initGUI
     window :: Gtk.Window <- Gtk.windowNew
     Gtk.windowSetDefaultSize window 300 100
     drawingArea :: Gtk.DrawingArea <- Gtk.drawingAreaNew
 
+    frame <- Gtk.frameNew
+    Gtk.frameSetLabel frame "What time is it"
+
+    Gtk.set frame [ Gtk.containerChild := drawingArea ]
+
     Gtk.set window
       [ Gtk.windowTitle := "Clock"
-      , Gtk.containerChild := drawingArea
+      , Gtk.containerChild := frame
       ]
 
     _ <- Gtk.on window Gtk.deleteEvent $
@@ -55,8 +81,7 @@ main =
 
     fontDescription :: Pango.FontDescription <- createFontDescription
 
-    _ <- Gtk.on drawingArea Gtk.draw
-        (render displayVar fontDescription drawingArea)
+    _ <- Gtk.on drawingArea Gtk.draw (render displayVar fontDescription)
 
     Gtk.widgetShowAll window
 
@@ -78,33 +103,35 @@ createFontDescription =
     Pango.fontDescriptionSetSize fd 40
     return fd
 
-render :: Gtk.WidgetClass w
-    => STM.TVar String
-        -- ^ Variable containing the text to display
+render
+    :: STM.TVar (Maybe (DisplayTime Int))
+          -- ^ Variable containing the text to display
     -> Pango.FontDescription
-        -- ^ Font to display the text in
-    -> w
-        -- ^ Widget we're rendering to (needed to get the size of it)
+          -- ^ Font to display the text in
     -> Cairo.Render ()
-render displayVar fontDescription widget =
+
+render displayVar fontDescription =
   do
-    displayString <- liftIO (STM.atomically (STM.readTVar displayVar))
-    Gtk.Rectangle _ _ w h <- liftIO (Gtk.widgetGetAllocation widget)
-    Cairo.setSourceRGB 1 0.9 1
-    Cairo.paint
-    layout <- Pango.createLayout displayString
-    liftIO (Pango.layoutSetFontDescription layout (Just fontDescription))
-    liftIO (Pango.layoutSetAlignment layout Pango.AlignCenter)
-    (_, (PangoRectangle x' y' x'' y'')) <-
-        liftIO (Pango.layoutGetExtents layout)
-    Cairo.moveTo ((fromIntegral w) / 2 - x'' / 2 - x')
-                 ((fromIntegral h) / 2 - y'' / 2 - y')
-    Cairo.setSourceRGB 0.2 0.1 0.2
-    Pango.showLayout layout
+    displayTimeMaybe <- liftIO (STM.atomically (STM.readTVar displayVar))
+    Gtk.getClipRectangle >>= \case
+      Nothing -> return ()
+      Just (Gtk.Rectangle x y w h) ->
+        do
+          Cairo.setSourceRGB 1 0.9 1
+          Cairo.paint
+          layout <- Pango.createLayout (maybe "" showDisplayTime displayTimeMaybe)
+          liftIO (Pango.layoutSetFontDescription layout (Just fontDescription))
+          liftIO (Pango.layoutSetAlignment layout Pango.AlignCenter)
+          (_, (PangoRectangle x' y' x'' y'')) <-
+              liftIO (Pango.layoutGetExtents layout)
+          Cairo.moveTo ((fromIntegral (x + w)) / 2 - x'' / 2 - x')
+                       ((fromIntegral (y + h)) / 2 - y'' / 2 - y')
+          Cairo.setSourceRGB 0.2 0.1 0.2
+          Pango.showLayout layout
 
 -- | @'runClock' t@ is an IO action that runs forever, keeping the value of @t@
 -- equal to the current time.
-runClock :: STM.TVar String -> IO ()
+runClock :: STM.TVar (Maybe (DisplayTime Int)) -> IO ()
 runClock displayVar =
   forever $
     do
@@ -113,11 +140,14 @@ runClock displayVar =
       let
           (clockSeconds :: Int, remainderSeconds :: Pico) =
               properFraction (Time.todSec time)
-          s =
-              printf "%02d:%02d:%02d"
-                  (Time.todHour time) (Time.todMin time) clockSeconds
+          displayTime =
+              DisplayTime
+                  { displayHour = Time.todHour time
+                  , displayMinute = Time.todMin time
+                  , displaySecond = clockSeconds
+                  }
 
-      liftIO (STM.atomically (STM.writeTVar displayVar s))
+      liftIO (STM.atomically (STM.writeTVar displayVar (Just displayTime)))
       threadDelaySeconds (1 - remainderSeconds)
 
 -- | Get the current time of day in the system time zone.
@@ -131,14 +161,15 @@ getLocalTimeOfDay =
 -- | @'watchClock' t w@ is an IO action that runs forever. Each time the value
 -- of @t@ changes, it invalidates the drawing area @w@, thus forcing it to
 -- redraw and update the display.
-watchClock :: Gtk.WidgetClass w => STM.TVar String -> w -> IO ()
+watchClock :: Gtk.WidgetClass w
+    => STM.TVar (Maybe (DisplayTime Int)) -> w -> IO ()
 watchClock displayVar drawingArea =
-    go ""
+    go Nothing
   where
-    go :: String -> IO ()
+    go :: Maybe (DisplayTime Int) -> IO ()
     go s =
       do
-        s' <- STM.atomically (mfilter (s /=) $ STM.readTVar displayVar)
+        s' <- STM.atomically (mfilter (s /=) (STM.readTVar displayVar))
         Gtk.postGUIAsync (invalidate drawingArea)
         go s'
 
@@ -146,8 +177,8 @@ watchClock displayVar drawingArea =
 invalidate :: Gtk.WidgetClass w => w -> IO ()
 invalidate widget =
   do
-    Gtk.Rectangle x y w h <- Gtk.widgetGetAllocation widget
-    Gtk.widgetQueueDrawArea widget x y w h
+    Gtk.Rectangle _x _y w h <- Gtk.widgetGetAllocation widget
+    Gtk.widgetQueueDrawArea widget 0 0 w h
 
 -- | Block for some fixed number of seconds.
 threadDelaySeconds :: RealFrac n => n -> IO ()
