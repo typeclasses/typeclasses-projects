@@ -9,7 +9,6 @@ import qualified Control.Concurrent as Concurrent
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Fixed
-import Data.Foldable
 
 -- cairo
 import qualified Graphics.Rendering.Cairo as Cairo
@@ -55,29 +54,34 @@ showDisplayTime (DisplayTime x y z) =
 main :: IO ()
 main =
   do
+    quitOnInterrupt
+
     displayVar <- STM.atomically (STM.newTVar Nothing)
     _ <- Gtk.initGUI
-    window :: Gtk.Window <- Gtk.windowNew
-    Gtk.windowSetDefaultSize window 300 100
+
     drawingArea :: Gtk.DrawingArea <- Gtk.drawingAreaNew
+    Gtk.set drawingArea
+      [ Gtk.widgetWidthRequest := 300
+      , Gtk.widgetHeightRequest := 100
+      ]
 
     frame <- Gtk.frameNew
-    Gtk.frameSetLabel frame "What time is it"
+    Gtk.set frame
+      [ Gtk.containerChild := drawingArea
+      , Gtk.frameLabel := "What time is it"
+      , Gtk.frameLabelXAlign := 0.5
+      , Gtk.frameLabelYAlign := 1
+      ]
 
-    Gtk.set frame [ Gtk.containerChild := drawingArea ]
-
+    window :: Gtk.Window <- Gtk.windowNew
     Gtk.set window
       [ Gtk.windowTitle := "Clock"
       , Gtk.containerChild := frame
+      , Gtk.windowDefaultWidth := 500
+      , Gtk.windowDefaultHeight := 250
       ]
 
-    _ <- Gtk.on window Gtk.deleteEvent $
-      do
-        liftIO Gtk.mainQuit
-        return False
-
-    for_ [Signals.sigINT, Signals.sigTERM] $ \s ->
-        Signals.installHandler s (Signals.Catch (liftIO Gtk.mainQuit)) Nothing
+    quitOnWindowClose window
 
     fontDescription :: Pango.FontDescription <- createFontDescription
 
@@ -94,6 +98,26 @@ main =
             (\_ -> Gtk.mainQuit)
 
     Gtk.mainGUI
+
+quitOnWindowClose :: Gtk.Window -> IO ()
+quitOnWindowClose window =
+  do
+    _connectId <- Gtk.on window Gtk.deleteEvent action
+    return ()
+  where
+    action =
+      do
+        liftIO Gtk.mainQuit
+        return False
+
+quitOnInterrupt :: IO ()
+quitOnInterrupt =
+  do
+    _oldHandler <- Signals.installHandler Signals.sigINT quitHandler Nothing
+    return ()
+  where
+    quitHandler :: Signals.Handler
+    quitHandler = Signals.Catch (liftIO Gtk.mainQuit)
 
 createFontDescription :: IO Pango.FontDescription
 createFontDescription =
