@@ -108,7 +108,7 @@ quitOnWindowClose window =
   where
     action =
       do
-        liftIO Gtk.mainQuit
+        liftIO (Gtk.postGUIAsync Gtk.mainQuit)
         return False
 
 quitOnInterrupt :: IO ()
@@ -118,7 +118,7 @@ quitOnInterrupt =
     return ()
   where
     quitHandler :: Signals.Handler
-    quitHandler = Signals.Catch (liftIO Gtk.mainQuit)
+    quitHandler = Signals.Catch (liftIO (Gtk.postGUIAsync Gtk.mainQuit))
 
 createFontDescription :: IO Pango.FontDescription
 createFontDescription =
