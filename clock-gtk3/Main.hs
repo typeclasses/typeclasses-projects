@@ -89,15 +89,16 @@ main =
 
     Gtk.widgetShowAll window
 
-    _ <- Concurrent.forkFinally
-            (runClock displayVar)
-            (\_ -> Gtk.mainQuit)
-
-    _ <- Concurrent.forkFinally
-            (watchClock displayVar drawingArea)
-            (\_ -> Gtk.mainQuit)
+    runUntilQuit (runClock displayVar)
+    runUntilQuit (watchClock displayVar drawingArea)
 
     Gtk.mainGUI
+
+runUntilQuit :: IO a -> IO ()
+runUntilQuit x =
+  do
+    _threadId <- Concurrent.forkFinally x (\_ -> Gtk.mainQuit)
+    return ()
 
 quitOnWindowClose :: Gtk.Window -> IO ()
 quitOnWindowClose window =
