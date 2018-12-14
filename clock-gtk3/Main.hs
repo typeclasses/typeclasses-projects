@@ -67,7 +67,7 @@ main =
       [ Gtk.widgetWidthRequest := 300
       , Gtk.widgetHeightRequest := 100
       ]
-    _ <- Gtk.on drawingArea Gtk.draw (render timeVar)
+    _ <- Gtk.on drawingArea Gtk.draw (render drawingArea timeVar)
 
     frame <- Gtk.frameNew
     Gtk.set frame
@@ -103,11 +103,15 @@ runUntilQuit x =
     _threadId <- Concurrent.forkFinally x (\_ -> Gtk.mainQuit)
     return ()
 
-render :: STM.TVar (Maybe (DisplayTime Int)) -> Cairo.Render ()
-render timeVar =
+render
+    :: Gtk.DrawingArea
+    -> STM.TVar (Maybe (DisplayTime Int))
+    -> Cairo.Render ()
+
+render drawingArea timeVar =
   do
     renderBackground
-    renderText timeVar
+    renderText drawingArea timeVar
 
 renderBackground :: Cairo.Render ()
 renderBackground =
@@ -115,8 +119,12 @@ renderBackground =
     Cairo.setSourceRGB 1 0.9 1
     Cairo.paint
 
-renderText :: STM.TVar (Maybe (DisplayTime Int)) -> Cairo.Render ()
-renderText timeVar =
+renderText
+    :: Gtk.DrawingArea
+    -> STM.TVar (Maybe (DisplayTime Int))
+    -> Cairo.Render ()
+
+renderText drawingArea timeVar =
   do
     displayTimeMaybe <- liftIO (STM.atomically (STM.readTVar timeVar))
     layout <- Pango.createLayout (maybe "" showDisplayTime displayTimeMaybe)
@@ -129,22 +137,15 @@ renderText timeVar =
         Pango.layoutSetFontDescription layout (Just fd)
 
     Cairo.setSourceRGB 0.2 0.1 0.2
-    showPangoCenter layout
+    showPangoCenter drawingArea layout
 
-showPangoCenter :: Gtk.PangoLayout -> Cairo.Render ()
-showPangoCenter layout =
-    Gtk.getClipRectangle >>=
-    \case
-        Nothing -> return ()
-        Just clip ->
-          do
-            (_, text) <- liftIO (Pango.layoutGetExtents layout)
-
-            cairoMoveTo $
-                rectCenter (gtkRect clip) -
-                rectCenter (pangoRect text)
-
-            Pango.showLayout layout
+showPangoCenter :: Gtk.DrawingArea -> Gtk.PangoLayout -> Cairo.Render ()
+showPangoCenter drawingArea layout =
+  do
+    area <- liftIO (Gtk.widgetGetAllocation drawingArea)
+    (_, text) <- liftIO (Pango.layoutGetExtents layout)
+    cairoMoveTo (rectCenter (gtkRect area) - rectCenter (pangoRect text))
+    Pango.showLayout layout
 
 cairoMoveTo :: V2 Double -> Cairo.Render ()
 cairoMoveTo (V2 x y) = Cairo.moveTo x y
