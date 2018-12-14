@@ -164,7 +164,7 @@ quitOnWindowClose window =
   where
     action =
       do
-        liftIO (Gtk.postGUIAsync Gtk.mainQuit)
+        liftIO Gtk.mainQuit
         return False
 
 quitOnInterrupt :: IO ()
