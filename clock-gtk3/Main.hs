@@ -75,6 +75,10 @@ main =
       , Gtk.frameLabel := "What time is it"
       , Gtk.frameLabelXAlign := 0.5
       , Gtk.frameLabelYAlign := 1
+      , Gtk.widgetMarginTop := 20
+      , Gtk.widgetMarginRight := 20
+      , Gtk.widgetMarginBottom := 20
+      , Gtk.widgetMarginLeft := 20
       ]
 
     window :: Gtk.Window <- Gtk.windowNew
