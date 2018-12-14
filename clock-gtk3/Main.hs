@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE LambdaCase, ScopedTypeVariables, TypeApplications #-}
+{-# LANGUAGE LambdaCase, DeriveFunctor, ScopedTypeVariables, TypeApplications #-}
 
 module Main (main) where
 
@@ -15,7 +15,10 @@ import qualified Graphics.Rendering.Cairo as Cairo
 
 -- gtk3
 import qualified Graphics.UI.Gtk as Gtk
-import Graphics.UI.Gtk (AttrOp ((:=)), PangoRectangle (..))
+import Graphics.UI.Gtk (AttrOp ((:=)))
+
+-- linear
+import Linear.V2
 
 -- pango
 import qualified Graphics.Rendering.Pango as Pango
@@ -56,7 +59,7 @@ main =
   do
     quitOnInterrupt
 
-    displayVar <- STM.atomically (STM.newTVar Nothing)
+    timeVar <- STM.atomically (STM.newTVar Nothing)
     _ <- Gtk.initGUI
 
     drawingArea :: Gtk.DrawingArea <- Gtk.drawingAreaNew
@@ -64,6 +67,7 @@ main =
       [ Gtk.widgetWidthRequest := 300
       , Gtk.widgetHeightRequest := 100
       ]
+    _ <- Gtk.on drawingArea Gtk.draw (render timeVar)
 
     frame <- Gtk.frameNew
     Gtk.set frame
@@ -82,15 +86,10 @@ main =
       ]
 
     quitOnWindowClose window
-
-    fontDescription :: Pango.FontDescription <- createFontDescription
-
-    _ <- Gtk.on drawingArea Gtk.draw (render displayVar fontDescription)
-
     Gtk.widgetShowAll window
 
-    runUntilQuit (runClock displayVar)
-    runUntilQuit (watchClock displayVar drawingArea)
+    runUntilQuit (runClock timeVar)
+    runUntilQuit (watchClock timeVar drawingArea)
 
     Gtk.mainGUI
 
@@ -99,6 +98,63 @@ runUntilQuit x =
   do
     _threadId <- Concurrent.forkFinally x (\_ -> Gtk.mainQuit)
     return ()
+
+render :: STM.TVar (Maybe (DisplayTime Int)) -> Cairo.Render ()
+render timeVar =
+  do
+    renderBackground
+    renderText timeVar
+
+renderBackground :: Cairo.Render ()
+renderBackground =
+  do
+    Cairo.setSourceRGB 1 0.9 1
+    Cairo.paint
+
+renderText :: STM.TVar (Maybe (DisplayTime Int)) -> Cairo.Render ()
+renderText timeVar =
+  do
+    displayTimeMaybe <- liftIO (STM.atomically (STM.readTVar timeVar))
+    layout <- Pango.createLayout (maybe "" showDisplayTime displayTimeMaybe)
+
+    liftIO $
+      do
+        fd <- Pango.fontDescriptionNew
+        Pango.fontDescriptionSetFamily fd "Fira Mono"
+        Pango.fontDescriptionSetSize fd 40
+        Pango.layoutSetFontDescription layout (Just fd)
+
+    Cairo.setSourceRGB 0.2 0.1 0.2
+    showPangoCenter layout
+
+showPangoCenter :: Gtk.PangoLayout -> Cairo.Render ()
+showPangoCenter layout =
+    Gtk.getClipRectangle >>=
+    \case
+        Nothing -> return ()
+        Just clip ->
+          do
+            (_, text) <- liftIO (Pango.layoutGetExtents layout)
+
+            cairoMoveTo $
+                rectCenter (gtkRect clip) -
+                rectCenter (pangoRect text)
+
+            Pango.showLayout layout
+
+cairoMoveTo :: V2 Double -> Cairo.Render ()
+cairoMoveTo (V2 x y) = Cairo.moveTo x y
+
+data Rect a = Rect { rectTL :: V2 a, rectSize :: V2 a } deriving Functor
+
+rectCenter :: (Real a, Fractional b) => Rect a -> V2 b
+rectCenter x = let y = realToFrac <$> x in rectTL y + (rectSize y / 2)
+
+gtkRect :: Gtk.Rectangle -> Rect Int
+gtkRect (Gtk.Rectangle x y w h) = Rect (V2 x y) (V2 w h)
+
+pangoRect :: Gtk.PangoRectangle -> Rect Double
+pangoRect (Gtk.PangoRectangle x y w h) = Rect (V2 x y) (V2 w h)
 
 quitOnWindowClose :: Gtk.Window -> IO ()
 quitOnWindowClose window =
@@ -120,44 +176,10 @@ quitOnInterrupt =
     quitHandler :: Signals.Handler
     quitHandler = Signals.Catch (liftIO (Gtk.postGUIAsync Gtk.mainQuit))
 
-createFontDescription :: IO Pango.FontDescription
-createFontDescription =
-  do
-    fd <- Pango.fontDescriptionNew
-    Pango.fontDescriptionSetFamily fd "Fira Mono"
-    Pango.fontDescriptionSetSize fd 40
-    return fd
-
-render
-    :: STM.TVar (Maybe (DisplayTime Int))
-          -- ^ Variable containing the text to display
-    -> Pango.FontDescription
-          -- ^ Font to display the text in
-    -> Cairo.Render ()
-
-render displayVar fontDescription =
-  do
-    displayTimeMaybe <- liftIO (STM.atomically (STM.readTVar displayVar))
-    Gtk.getClipRectangle >>= \case
-      Nothing -> return ()
-      Just (Gtk.Rectangle x y w h) ->
-        do
-          Cairo.setSourceRGB 1 0.9 1
-          Cairo.paint
-          layout <- Pango.createLayout (maybe "" showDisplayTime displayTimeMaybe)
-          liftIO (Pango.layoutSetFontDescription layout (Just fontDescription))
-          liftIO (Pango.layoutSetAlignment layout Pango.AlignCenter)
-          (_, (PangoRectangle x' y' x'' y'')) <-
-              liftIO (Pango.layoutGetExtents layout)
-          Cairo.moveTo ((fromIntegral (x + w)) / 2 - x'' / 2 - x')
-                       ((fromIntegral (y + h)) / 2 - y'' / 2 - y')
-          Cairo.setSourceRGB 0.2 0.1 0.2
-          Pango.showLayout layout
-
 -- | @'runClock' t@ is an IO action that runs forever, keeping the value of @t@
 -- equal to the current time.
 runClock :: STM.TVar (Maybe (DisplayTime Int)) -> IO ()
-runClock displayVar =
+runClock timeVar =
   forever $
     do
       time <- getLocalTimeOfDay
@@ -172,7 +194,7 @@ runClock displayVar =
                   , displaySecond = clockSeconds
                   }
 
-      liftIO (STM.atomically (STM.writeTVar displayVar (Just displayTime)))
+      liftIO (STM.atomically (STM.writeTVar timeVar (Just displayTime)))
       threadDelaySeconds (1 - remainderSeconds)
 
 -- | Get the current time of day in the system time zone.
@@ -188,13 +210,13 @@ getLocalTimeOfDay =
 -- redraw and update the display.
 watchClock :: Gtk.WidgetClass w
     => STM.TVar (Maybe (DisplayTime Int)) -> w -> IO ()
-watchClock displayVar drawingArea =
+watchClock timeVar drawingArea =
     go Nothing
   where
     go :: Maybe (DisplayTime Int) -> IO ()
     go s =
       do
-        s' <- STM.atomically (mfilter (s /=) (STM.readTVar displayVar))
+        s' <- STM.atomically (mfilter (s /=) (STM.readTVar timeVar))
         Gtk.postGUIAsync (invalidate drawingArea)
         go s'
 

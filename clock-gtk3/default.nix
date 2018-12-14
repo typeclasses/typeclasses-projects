@@ -22,6 +22,7 @@ rec {
         ghc.ghcWithPackages (p: [
             p.cairo
             p.gtk3
+            p.linear
             p.pango
             p.stm
             p.time
