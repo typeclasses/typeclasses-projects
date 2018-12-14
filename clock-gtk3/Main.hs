@@ -142,24 +142,27 @@ renderText drawingArea timeVar =
 showPangoCenter :: Gtk.DrawingArea -> Gtk.PangoLayout -> Cairo.Render ()
 showPangoCenter drawingArea layout =
   do
-    area <- liftIO (Gtk.widgetGetAllocation drawingArea)
-    (_, text) <- liftIO (Pango.layoutGetExtents layout)
-    cairoMoveTo (rectCenter (gtkRect area) - rectCenter (pangoRect text))
+    clipCenter <- getClipCenter
+    textCenter <- getTextCenter
+    let (V2 x y) = clipCenter - textCenter
+    Cairo.moveTo x y
     Pango.showLayout layout
+  where
+    getClipSize :: Cairo.Render (V2 Int) =
+      do
+        Gtk.Rectangle _x _y w h <- liftIO (Gtk.widgetGetClip drawingArea)
+        return (V2 w h)
 
-cairoMoveTo :: V2 Double -> Cairo.Render ()
-cairoMoveTo (V2 x y) = Cairo.moveTo x y
+    getClipCenter :: Cairo.Render (V2 Double) =
+      do
+        size <- getClipSize
+        return ((realToFrac <$> size) / 2)
 
-data Rect a = Rect { rectTL :: V2 a, rectSize :: V2 a } deriving Functor
-
-rectCenter :: (Real a, Fractional b) => Rect a -> V2 b
-rectCenter x = let y = realToFrac <$> x in rectTL y + (rectSize y / 2)
-
-gtkRect :: Gtk.Rectangle -> Rect Int
-gtkRect (Gtk.Rectangle x y w h) = Rect (V2 x y) (V2 w h)
-
-pangoRect :: Gtk.PangoRectangle -> Rect Double
-pangoRect (Gtk.PangoRectangle x y w h) = Rect (V2 x y) (V2 w h)
+    getTextCenter :: Cairo.Render (V2 Double) =
+      do
+        (_, Gtk.PangoRectangle x y w h) <-
+            liftIO (Pango.layoutGetExtents layout)
+        return (V2 x y + (V2 w h / 2))
 
 quitOnWindowClose :: Gtk.Window -> IO ()
 quitOnWindowClose window =
