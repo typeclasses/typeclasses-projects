@@ -55,7 +55,7 @@ showDisplayTime (DisplayTime x y z) =
     twoDigits z
 
 main :: IO ()
-main =
+main = Concurrent.runInBoundThread $
   do
     quitOnInterrupt
 
