@@ -9,6 +9,7 @@ import qualified Control.Concurrent as Concurrent
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Fixed
+import Numeric.Natural
 
 -- cairo
 import qualified Graphics.Rendering.Cairo as Cairo
@@ -32,23 +33,22 @@ import qualified Data.Time as Time
 -- unix
 import qualified System.Posix.Signals as Signals
 
-data DisplayTime a =
+data DisplayTime =
     DisplayTime
-        { displayHour :: a
-        , displayMinute :: a
-        , displaySecond :: a
+        { displayHour :: Natural
+        , displayMinute :: Natural
+        , displaySecond :: Natural
         }
     deriving Eq
 
-twoDigits :: Int -> String
-twoDigits x | x < 0 = "??"
+twoDigits :: Natural -> String
 twoDigits x =
-    case (show @Int x) of
+    case (show @Natural x) of
         [a]    -> ['0', a]
         [a, b] -> [a, b]
         _      -> "??"
 
-showDisplayTime :: DisplayTime Int -> String
+showDisplayTime :: DisplayTime -> String
 showDisplayTime (DisplayTime x y z) =
     twoDigits x <> ":" <>
     twoDigits y <> ":" <>
@@ -105,7 +105,7 @@ runUntilQuit x =
 
 render
     :: Gtk.DrawingArea
-    -> STM.TVar (Maybe (DisplayTime Int))
+    -> STM.TVar (Maybe DisplayTime)
     -> Cairo.Render ()
 
 render drawingArea timeVar =
@@ -121,7 +121,7 @@ renderBackground =
 
 renderText
     :: Gtk.DrawingArea
-    -> STM.TVar (Maybe (DisplayTime Int))
+    -> STM.TVar (Maybe DisplayTime)
     -> Cairo.Render ()
 
 renderText drawingArea timeVar =
@@ -186,7 +186,7 @@ quitOnInterrupt =
 
 -- | @'runClock' t@ is an IO action that runs forever, keeping the value of @t@
 -- equal to the current time.
-runClock :: STM.TVar (Maybe (DisplayTime Int)) -> IO ()
+runClock :: STM.TVar (Maybe DisplayTime) -> IO ()
 runClock timeVar =
   forever $
     do
@@ -197,9 +197,9 @@ runClock timeVar =
               properFraction (Time.todSec time)
           displayTime =
               DisplayTime
-                  { displayHour = Time.todHour time
-                  , displayMinute = Time.todMin time
-                  , displaySecond = clockSeconds
+                  { displayHour = fromIntegral (Time.todHour time)
+                  , displayMinute = fromIntegral (Time.todMin time)
+                  , displaySecond = fromIntegral clockSeconds
                   }
 
       liftIO (STM.atomically (STM.writeTVar timeVar (Just displayTime)))
@@ -217,11 +217,11 @@ getLocalTimeOfDay =
 -- of @t@ changes, it invalidates the drawing area @w@, thus forcing it to
 -- redraw and update the display.
 watchClock :: Gtk.WidgetClass w
-    => STM.TVar (Maybe (DisplayTime Int)) -> w -> IO ()
+    => STM.TVar (Maybe DisplayTime) -> w -> IO ()
 watchClock timeVar drawingArea =
     go Nothing
   where
-    go :: Maybe (DisplayTime Int) -> IO ()
+    go :: Maybe DisplayTime -> IO ()
     go s =
       do
         s' <- STM.atomically (mfilter (s /=) (STM.readTVar timeVar))
