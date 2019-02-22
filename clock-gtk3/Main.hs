@@ -127,7 +127,14 @@ renderText
 renderText drawingArea timeVar =
   do
     displayTimeMaybe <- liftIO (STM.atomically (STM.readTVar timeVar))
-    layout <- Pango.createLayout (maybe "" showDisplayTime displayTimeMaybe)
+
+    let
+        text =
+            case displayTimeMaybe of
+                Nothing -> ""
+                Just time -> showDisplayTime time
+
+    layout <- Pango.createLayout text
 
     liftIO $
       do
