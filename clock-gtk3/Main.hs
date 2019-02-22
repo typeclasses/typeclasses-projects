@@ -58,9 +58,9 @@ main :: IO ()
 main = Concurrent.runInBoundThread $
   do
     quitOnInterrupt
+    _ <- Gtk.initGUI
 
     timeVar <- STM.atomically (STM.newTVar Nothing)
-    _ <- Gtk.initGUI
 
     drawingArea :: Gtk.DrawingArea <- Gtk.drawingAreaNew
     Gtk.set drawingArea
