@@ -236,15 +236,8 @@ watchClock timeVar drawingArea =
     go s =
       do
         s' <- STM.atomically (mfilter (s /=) (STM.readTVar timeVar))
-        Gtk.postGUIAsync (invalidate drawingArea)
+        Gtk.postGUIAsync (Gtk.widgetQueueDraw drawingArea)
         go s'
-
--- | Invalidate (force the redrawing of) an entire widget.
-invalidate :: Gtk.WidgetClass w => w -> IO ()
-invalidate widget =
-  do
-    Gtk.Rectangle _x _y w h <- Gtk.widgetGetAllocation widget
-    Gtk.widgetQueueDrawArea widget 0 0 w h
 
 -- | Block for some fixed number of seconds.
 threadDelaySeconds :: RealFrac n => n -> IO ()
