@@ -198,17 +198,7 @@ runClock timeVar =
   forever $
     do
       time <- getLocalTimeOfDay
-
-      let
-          (clockSeconds :: Int, remainderSeconds :: Pico) =
-              properFraction (Time.todSec time)
-          displayTime =
-              DisplayTime
-                  { displayHour = fromIntegral (Time.todHour time)
-                  , displayMinute = fromIntegral (Time.todMin time)
-                  , displaySecond = fromIntegral clockSeconds
-                  }
-
+      let (displayTime, remainderSeconds) = interpretTime time
       liftIO (STM.atomically (STM.writeTVar timeVar (Just displayTime)))
       threadDelaySeconds (1 - remainderSeconds)
 
@@ -219,6 +209,20 @@ getLocalTimeOfDay =
     tz :: Time.TimeZone <- Time.getCurrentTimeZone
     utc :: Time.UTCTime <- Time.getCurrentTime
     return (Time.localTimeOfDay (Time.utcToLocalTime tz utc))
+
+-- | Pick out the relevant aspects of the time that we care about.
+interpretTime :: Time.TimeOfDay -> (DisplayTime, Pico)
+interpretTime x = (displayTime, remainderSeconds)
+    where
+      displayTime =
+          DisplayTime
+              { displayHour = fromIntegral (Time.todHour x)
+              , displayMinute = fromIntegral (Time.todMin x)
+              , displaySecond = fromIntegral clockSeconds
+              }
+
+      (clockSeconds :: Int, remainderSeconds :: Pico) =
+          properFraction (Time.todSec x)
 
 -- | @'watchClock' t w@ is an IO action that runs forever. Each time the value
 -- of @t@ changes, it invalidates the drawing area @w@, thus forcing it to
