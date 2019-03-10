@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE LambdaCase, DeriveFunctor, ScopedTypeVariables, TypeApplications #-}
+{-# LANGUAGE LambdaCase, DeriveFunctor, NumericUnderscores,
+             ScopedTypeVariables, TypeApplications #-}
 
 module Main (main) where
 
@@ -242,9 +243,4 @@ watchClock timeVar drawingArea =
 -- | Block for some fixed number of seconds.
 threadDelaySeconds :: RealFrac n => n -> IO ()
 threadDelaySeconds =
-    Concurrent.threadDelay . round . (* million)
-
--- | One million = 10^6.
-million :: Num n => n
-million =
-    10 ^ (6 :: Int)
+    Concurrent.threadDelay . round . (* 1_000_000)
