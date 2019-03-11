@@ -8,6 +8,8 @@ import            Graphics.UI.FLTK.Theme.Light hiding (clockNew)
 import            Graphics.UI.FLTK.LowLevel.Fl_Enumerations
 
 import            Data.Fixed (Pico)
+import            Data.IORef
+import            Foreign.StablePtr
 
 import qualified  Data.Time                     as Time
 import qualified  Data.Time.Clock.POSIX         as Time
@@ -17,9 +19,18 @@ import qualified  Graphics.UI.FLTK.LowLevel.FL  as FL
 
 clockNew :: (?assets :: Assets) => Rectangle -> Maybe T.Text -> IO (Ref LowLevel.Clock)
 clockNew rectangle l' = do
+  ref <- newIORef Nothing
+  let
+    tickClock =
+      do
+        cMaybe <- readIORef ref
+        case cMaybe of
+          Nothing -> return ()
+          Just c -> tick tickClock c
   c <- LowLevel.clockCustom rectangle l' (Just drawClock)
         (Just defaultCustomWidgetFuncs
-        { handleCustom = Just clockHandle })
+        { handleCustom = Just (clockHandle tickClock) })
+  writeIORef ref (Just c)
   color <- commonColor
   LowLevel.setColor c color
   LowLevel.setBox c BorderBox
@@ -30,12 +41,12 @@ clockNew rectangle l' = do
   LowLevel.setShadow c True
   return c
 
-clockHandle :: Ref LowLevel.Clock -> Event -> IO (Either UnknownEvent ())
-clockHandle clock event =
+clockHandle :: IO () -> Ref LowLevel.Clock -> Event -> IO (Either UnknownEvent ())
+clockHandle tickClock clock event =
   do
     case event of
-      Show -> Right <$> (FL.addTimeout 1 (tick clock))
-      Hide -> Right <$> (FL.removeTimeout (tick clock))
+      Show -> Right <$> tickClock
+      Hide -> Right <$> (FL.removeTimeout tickClock)
       _    -> return (Left UnknownEvent)
 
 ui :: (?assets :: Assets) => IO ()
