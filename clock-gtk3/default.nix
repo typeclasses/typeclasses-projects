@@ -4,7 +4,7 @@ rec {
         import (import ./nixpkgs.nix) {};
 
     ghc =
-        pkgs.haskell.packages.ghc844.override {
+        pkgs.haskell.packages.ghc863.override {
             overrides =
                 self:
                 super:

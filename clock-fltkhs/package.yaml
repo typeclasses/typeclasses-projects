@@ -39,6 +39,8 @@ executables:
       - fltkhs-themes >= 0.1.0.0
       - text >= 1.2.2.0
       - load-font >= 0.1.0.2
+      - time
+      - tz
     when:
       - condition: impl(ghc >= 7.10) && impl(ghc < 8.0) && flag(fastCompile)
         then:

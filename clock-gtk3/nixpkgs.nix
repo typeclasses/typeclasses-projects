@@ -4,8 +4,8 @@
   owner = "NixOS";
   repo = "nixpkgs";
 
-  # NixOS unstable, 2018 Nov 17
-  rev = "80738ed9dc0ce48d7796baed5364eef8072c794d";
-  sha256 = "0anmvr6b47gbbyl9v2fn86mfkcwgpbd5lf0yf3drgm8pbv57c1dc";
+  # NixOS unstable, 2019 Feb 14
+  rev = "36f316007494c388df1fec434c1e658542e3c3cc";
+  sha256 = "1w1dg9ankgi59r2mh0jilccz5c4gv30a6q1k6kv2sn8vfjazwp9k";
 
 }

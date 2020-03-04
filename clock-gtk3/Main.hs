@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE LambdaCase, DeriveFunctor, ScopedTypeVariables, TypeApplications #-}
+{-# LANGUAGE LambdaCase, DeriveFunctor, NumericUnderscores,
+             ScopedTypeVariables, TypeApplications #-}
 
 module Main (main) where
 
@@ -9,6 +10,7 @@ import qualified Control.Concurrent as Concurrent
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Fixed
+import Numeric.Natural
 
 -- cairo
 import qualified Graphics.Rendering.Cairo as Cairo
@@ -32,23 +34,22 @@ import qualified Data.Time as Time
 -- unix
 import qualified System.Posix.Signals as Signals
 
-data DisplayTime a =
+data DisplayTime =
     DisplayTime
-        { displayHour :: a
-        , displayMinute :: a
-        , displaySecond :: a
+        { displayHour :: Natural
+        , displayMinute :: Natural
+        , displaySecond :: Natural
         }
     deriving Eq
 
-twoDigits :: Int -> String
-twoDigits x | x < 0 = "??"
+twoDigits :: Natural -> String
 twoDigits x =
-    case (show @Int x) of
+    case (show @Natural x) of
         [a]    -> ['0', a]
         [a, b] -> [a, b]
         _      -> "??"
 
-showDisplayTime :: DisplayTime Int -> String
+showDisplayTime :: DisplayTime -> String
 showDisplayTime (DisplayTime x y z) =
     twoDigits x <> ":" <>
     twoDigits y <> ":" <>
@@ -58,9 +59,9 @@ main :: IO ()
 main = Concurrent.runInBoundThread $
   do
     quitOnInterrupt
+    _ <- Gtk.initGUI
 
     timeVar <- STM.atomically (STM.newTVar Nothing)
-    _ <- Gtk.initGUI
 
     drawingArea :: Gtk.DrawingArea <- Gtk.drawingAreaNew
     Gtk.set drawingArea
@@ -105,7 +106,7 @@ runUntilQuit x =
 
 render
     :: Gtk.DrawingArea
-    -> STM.TVar (Maybe (DisplayTime Int))
+    -> STM.TVar (Maybe DisplayTime)
     -> Cairo.Render ()
 
 render drawingArea timeVar =
@@ -121,13 +122,20 @@ renderBackground =
 
 renderText
     :: Gtk.DrawingArea
-    -> STM.TVar (Maybe (DisplayTime Int))
+    -> STM.TVar (Maybe DisplayTime)
     -> Cairo.Render ()
 
 renderText drawingArea timeVar =
   do
     displayTimeMaybe <- liftIO (STM.atomically (STM.readTVar timeVar))
-    layout <- Pango.createLayout (maybe "" showDisplayTime displayTimeMaybe)
+
+    let
+        text =
+            case displayTimeMaybe of
+                Nothing -> ""
+                Just time -> showDisplayTime time
+
+    layout <- Pango.createLayout text
 
     liftIO $
       do
@@ -186,22 +194,12 @@ quitOnInterrupt =
 
 -- | @'runClock' t@ is an IO action that runs forever, keeping the value of @t@
 -- equal to the current time.
-runClock :: STM.TVar (Maybe (DisplayTime Int)) -> IO ()
+runClock :: STM.TVar (Maybe DisplayTime) -> IO ()
 runClock timeVar =
   forever $
     do
       time <- getLocalTimeOfDay
-
-      let
-          (clockSeconds :: Int, remainderSeconds :: Pico) =
-              properFraction (Time.todSec time)
-          displayTime =
-              DisplayTime
-                  { displayHour = Time.todHour time
-                  , displayMinute = Time.todMin time
-                  , displaySecond = clockSeconds
-                  }
-
+      let (displayTime, remainderSeconds) = interpretTime time
       liftIO (STM.atomically (STM.writeTVar timeVar (Just displayTime)))
       threadDelaySeconds (1 - remainderSeconds)
 
@@ -213,34 +211,36 @@ getLocalTimeOfDay =
     utc :: Time.UTCTime <- Time.getCurrentTime
     return (Time.localTimeOfDay (Time.utcToLocalTime tz utc))
 
+-- | Pick out the relevant aspects of the time that we care about.
+interpretTime :: Time.TimeOfDay -> (DisplayTime, Pico)
+interpretTime x = (displayTime, remainderSeconds)
+    where
+      displayTime =
+          DisplayTime
+              { displayHour = fromIntegral (Time.todHour x)
+              , displayMinute = fromIntegral (Time.todMin x)
+              , displaySecond = fromIntegral clockSeconds
+              }
+
+      (clockSeconds :: Int, remainderSeconds :: Pico) =
+          properFraction (Time.todSec x)
+
 -- | @'watchClock' t w@ is an IO action that runs forever. Each time the value
 -- of @t@ changes, it invalidates the drawing area @w@, thus forcing it to
 -- redraw and update the display.
 watchClock :: Gtk.WidgetClass w
-    => STM.TVar (Maybe (DisplayTime Int)) -> w -> IO ()
+    => STM.TVar (Maybe DisplayTime) -> w -> IO ()
 watchClock timeVar drawingArea =
     go Nothing
   where
-    go :: Maybe (DisplayTime Int) -> IO ()
+    go :: Maybe DisplayTime -> IO ()
     go s =
       do
         s' <- STM.atomically (mfilter (s /=) (STM.readTVar timeVar))
-        Gtk.postGUIAsync (invalidate drawingArea)
+        Gtk.postGUIAsync (Gtk.widgetQueueDraw drawingArea)
         go s'
-
--- | Invalidate (force the redrawing of) an entire widget.
-invalidate :: Gtk.WidgetClass w => w -> IO ()
-invalidate widget =
-  do
-    Gtk.Rectangle _x _y w h <- Gtk.widgetGetAllocation widget
-    Gtk.widgetQueueDrawArea widget 0 0 w h
 
 -- | Block for some fixed number of seconds.
 threadDelaySeconds :: RealFrac n => n -> IO ()
 threadDelaySeconds =
-    Concurrent.threadDelay . round . (* million)
-
--- | One million = 10^6.
-million :: Num n => n
-million =
-    10 ^ (6 :: Int)
+    Concurrent.threadDelay . round . (* 1_000_000)
